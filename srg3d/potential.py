@@ -296,12 +296,12 @@ def load(file_str):
     result = re.search(regex_str, end)
 
     # Extract values from matches
-    n_body_str = result.group(0)
-    order_str = result.group(1)
-    name = result.group(2)
-    channel_str = result.group(3)
-    lam = float(result.group(4))
-    particles = result.group(6)
+    n_body_str = result.group(1)
+    order_str = result.group(2)
+    name = result.group(3)
+    channel_str = result.group(4)
+    lam = float(result.group(5))
+    particles = result.group(7)
 
     # Convert string values to integer values
     n_body = NBODY_DICT[n_body_str]
@@ -311,7 +311,7 @@ def load(file_str):
     channel = tuple([int(n) for n in channel_str])
 
     # Get number of points
-    num_points = result.group(5)
+    num_points = int(result.group(6))
 
     # Read potential
     with open(file_str) as file:
