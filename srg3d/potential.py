@@ -4,6 +4,15 @@ Module containing representations of 3D potentials for use in nuclear theory.
 Also contains logic to read them from and save them to files with a standard
 naming convention.
 
+class Channel
+-------------
+A container for the channel information for a potential. It has the following
+method::
+
+    channel = Channel(spin, orb_ang_mom_1, orb_ang_mom_2, tot_ang_mom, isospin)
+
+These are also commonly read as S, L, L, J, and T.
+
 class PotentialType
 -------------------
 A container class to hold all the physical information about the potential. It
@@ -68,6 +77,58 @@ ORDER_DICT = {
 INV_ORDER_DICT = {v: k for k, v in ORDER_DICT.items()}
 
 
+class Channel:
+    """Container for information on channel for potential."""
+
+    # pylint: disable=too-many-arguments
+    def __init__(self, spin, orb_ang_mom_1, orb_ang_mom_2, tot_ang_mom,
+                 isospin):
+        """Create Channel object.
+
+        Parameters
+        ----------
+        spin : int
+            Spin quantum number.
+        orb_ang_mom_1 : int
+            First angular momentum quantum number.
+        orb_ang_mom_2 : int
+            Second angular momentum quantum number.
+        tot_ang_mom : int
+            Total angular momentum.
+        isospin : int
+            2-body isospin quantum number.
+
+        """
+        self._spin = spin
+        self._l1 = orb_ang_mom_1
+        self._l2 = orb_ang_mom_2
+        self._j = tot_ang_mom
+        self._isospin = isospin
+
+    def as_5tuple(self):
+        """Return 5-tuple representation of channel.
+
+        Returns
+        -------
+        (int, int, int, int, int)
+            5-tuple with channel quantum numbers.
+
+        """
+        return (self._spin, self._l1, self._l2, self._j, self._isospin)
+
+    def __str__(self):
+        """Return string representation of channel.
+
+        Returns
+        -------
+        str
+            String of 5 integers with channel information which are SLLJT.
+
+        """
+        return '{}{}{}{}{}'.format(self._spin, self._l1, self._l2, self._j,
+                                   self._isospin)
+
+
 class PotentialType:
     """Container for information related to potential."""
 
@@ -83,9 +144,8 @@ class PotentialType:
             Order to which potential was calculated.
         name : str
             Name for potential, may reflect something about origin.
-        channel: (int, int, int, int, int)
-            5-tuple of integers representing the partial wave channel for the
-            potential.
+        channel: Channel
+            Object representing the partial wave channel for the potential.
         particles: str
             String representing constituent particles in the interaction.
 
@@ -138,8 +198,8 @@ class PotentialType:
 
         Returns
         -------
-        (int, int, int, int, int)
-            5-tuple representation of partial wave channel.
+        Channel
+            Channel object representing partial wave channel.
 
         """
         return self._channel
@@ -307,8 +367,8 @@ def load(file_str):
     n_body = NBODY_DICT[n_body_str]
     order = ORDER_DICT[order_str]
 
-    # Conver channel to 5-tuple
-    channel = tuple([int(n) for n in channel_str])
+    # Convert channel to 5-tuple, then Channel object
+    channel = Channel(*tuple([int(n) for n in channel_str]))
 
     # Get number of points
     num_points = int(result.group(6))
@@ -359,7 +419,7 @@ def save(dir_str, potential):
     order = potential_type.order
     order_str = INV_ORDER_DICT[order]
     name = potential_type.name
-    channel_str = ''.join(list(potential_type.channel))
+    channel_str = str(potential_type.channel)
     lam = potential_type.lam
     num_points = len(potential.nodes)
     particles = potential_type.particles
