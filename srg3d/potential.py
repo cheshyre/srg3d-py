@@ -409,7 +409,7 @@ def save(dir_str, potential):
         dir_str = dir_str[:-1]
 
     # Set up format strings
-    file_format_str = '{}/V{}_{}_{}_SLLJT_{}_lambda_{0:.2f}_Np_{}_{}.dat'
+    file_format_str = '{}/V{}_{}_{}_SLLJT_{}_lambda_{:.2f}_Np_{}_{}.dat'
     nodes_format_str = '{:.5e} {:.5e}\n'
     potential_format_str = '{:.5e} {:.5e} {:.5e}\n'
 
