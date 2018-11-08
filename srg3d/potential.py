@@ -129,6 +129,28 @@ class Channel:
         return '{}{}{}{}{}'.format(self._spin, self._l1, self._l2, self._j,
                                    self._isospin)
 
+    def __eq__(self, other):
+        """Return whether channel is same as another channel object.
+
+        Returns
+        -------
+        bool
+            True if self and other are the same, False otherwise.
+
+        """
+        return self.as_5tuple() == other.as_5tuple()
+
+    def __ne__(self, other):
+        """Return whether channel is different from another channel object.
+
+        Returns
+        -------
+        bool
+            False if self and other are the same, False otherwise.
+
+        """
+        return self.as_5tuple() != other.as_5tuple()
+
 
 class PotentialType:
     """Container for information related to potential."""
@@ -217,6 +239,36 @@ class PotentialType:
         """
         return self._particles
 
+    def __eq__(self, other):
+        """Return whether potential type is same as other potential type.
+
+        Returns
+        -------
+        bool
+            True if same, False otherwise.
+
+        """
+        return ((self.n_body == other.n_body)
+                and (self.order == other.order)
+                and (self.name == other.name)
+                and (self.channel == other.channel)
+                and (self.particles == other.particles))
+
+    def __ne__(self, other):
+        """Return whether potential type is not same as other potential type.
+
+        Returns
+        -------
+        bool
+            False if same, True otherwise.
+
+        """
+        return not ((self.n_body == other.n_body)
+                    and (self.order == other.order)
+                    and (self.name == other.name)
+                    and (self.channel == other.channel)
+                    and (self.particles == other.particles))
+
 
 class Potential:
     """Class encapsulating all relevant information about a potential."""
@@ -273,6 +325,32 @@ class Potential:
         """
         return np.array(self._potential)
 
+    def reduce_dim(self, dim):
+        """Return new potential with only `dim` lowest energy states.
+
+        Returns
+        -------
+        Potential
+            New reduced dimension potential.
+
+        Raises
+        ------
+        ValueError
+            When value for new dim is too small or too large.
+
+        """
+        if dim >= len(self.nodes):
+            raise ValueError('Value of dim is not smaller than current dim.')
+        if dim <= 0:
+            raise ValueError('Zero or negative dim is not allowed.')
+
+        new_data = self._potential[np.ix_(list(range(dim)), list(range(dim)))]
+        new_nodes = self._nodes[:dim]
+        new_weights = self._weights[:dim]
+
+        return Potential(self._potential_type, new_nodes, new_weights,
+                         new_data, self._lam)
+
     def kinetic_energy(self):
         """Return kinetic energy for potential (for calculations).
 
@@ -283,6 +361,86 @@ class Potential:
 
         """
         return np.diag(np.array([p**2 for p in self._nodes]))
+
+    def __eq__(self, other):
+        """Return whether two potentials are equal to with numerical error.
+
+        Returns
+        -------
+        bool
+            True when potential type, nodes, weights, potential, and lam are
+            all equal within epsilon, False otherwise.
+
+        """
+        # Numerical errors smaller than this are acceptable
+        # If there is something wrong with the physics, it should produce
+        # errors larger than this.
+        eps = 10**(-4)
+
+        if self.potential_type != other.potential_type:
+            return False
+        if self.dim != other.dim:
+            return False
+        if abs(self.lam - other.lam) > eps:
+            return False
+        for p_self, p_other, w_self, w_other in zip(self.nodes, other.nodes,
+                                                    self.weights,
+                                                    other.weights):
+            if abs(p_self - p_other) > eps or abs(w_self - w_other) > eps:
+                return False
+        for i in range(self.dim):
+            for j in range(self.dim):
+                diff = abs(self.without_weights()[i][j] -
+                           other.without_weights()[i][j])
+                if diff > eps:
+                    return False
+        return True
+
+    def __ne__(self, other):
+        """Return whether two potentials are not equal to with numerical error.
+
+        Returns
+        -------
+        bool
+            False when potential type, nodes, weights, potential, and lam are
+            all equal within epsilon, True otherwise.
+
+        """
+        # Numerical errors smaller than this are acceptable
+        # If there is something wrong with the physics, it should produce
+        # errors larger than this.
+        eps = 10**(-4)
+
+        if self.potential_type != other.potential_type:
+            return True
+        if self.dim != other.dim:
+            return True
+        if abs(self.lam - other.lam) > eps:
+            return True
+        for p_self, p_other, w_self, w_other in zip(self.nodes, other.nodes,
+                                                    self.weights,
+                                                    other.weights):
+            if abs(p_self - p_other) > eps or abs(w_self - w_other) > eps:
+                return True
+        for i in range(self.dim):
+            for j in range(self.dim):
+                diff = abs(self.without_weights()[i][j] -
+                           other.without_weights()[i][j])
+                if diff > eps:
+                    return True
+        return False
+
+    @property
+    def dim(self):
+        """Return the dimension of the potential matrix.
+
+        Returns
+        -------
+        int
+            The dimension of the (square) potential matrix.
+
+        """
+        return len(self._nodes)
 
     @property
     def potential_type(self):
@@ -444,6 +602,18 @@ def save(dir_str, potential):
 
 
 def plot(potential, v_min=None, v_max=None):
+    """Plot potential with colorbar.
+
+    Parameters
+    ----------
+    potential : Potential
+        Potential to be plotted.
+    v_min : int, optional
+        Minimum value to be reflected on the colorbar scale.
+    v_max : int, optional
+        Maximum value to be reflected on the colorbar scale.
+
+    """
     if v_min is None or v_max is None:
         plt.matshow(potential.without_weights())
     else:
