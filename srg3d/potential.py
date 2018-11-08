@@ -59,6 +59,7 @@ import os
 import re
 
 import numpy as np
+import matplotlib.pyplot as plt
 
 NBODY_DICT = {
     'NN': 2,
@@ -440,6 +441,16 @@ def save(dir_str, potential):
                 file.write(potential_format_str.format(
                     potential.nodes[i], potential.nodes[j],
                     potential.without_weights()[i][j]))
+
+
+def plot(potential, v_min=None, v_max=None):
+    if v_min is None or v_max is None:
+        plt.matshow(potential.without_weights())
+    else:
+        plt.matshow(potential.without_weights(), vmin=v_min, vmax=v_max)
+    plt.colorbar()
+    plt.show()
+    plt.close()
 
 
 # ------------------- Internal Methods ------------------------------------- #
