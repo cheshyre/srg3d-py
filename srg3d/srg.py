@@ -1,3 +1,22 @@
+"""Module for the SRG evolver.
+
+class SRG
+---------
+An abstraction for the SRG evolution intended to work like a numerical
+integrator. It has the following methods::
+
+    srg = SRG(potential, flow_operator_mask_v, flow_operator_mask_k)
+    srg.evolve(lam)
+    evolved_potential = srg.get_potential()
+    srg.replace_potential(new_potential)
+
+Changelog:
+
+2018.11.08
+    Added:
+        Initial completion of module. Tested and verified it works.
+
+"""
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
@@ -111,10 +130,45 @@ class SRG:
         return Potential(self._potential.potential_type, self._potential.nodes,
                          self._potential.weights, self._v, self._lam)
 
+    def replace_potential(self, new_potential):
+        """Replace potential being used for SRG evolution with another.
+
+        Parameters
+        ----------
+        new_potential : Potential
+            New potential to replace current potential in SRG evolution.
+
+        Raises
+        ------
+        ValueError
+            When new potential's potential type or lam is different from
+            current potential.
+
+        Notes
+        -----
+        This is primarily intended to support dimension reduction of the
+        potential as the SRG evolution progresses. If you would like to reuse
+        the SRG object for a different evolution, please make a new SRG evolver
+        instead.
+
+        """
+        eps = 10**(-4)
+
+        if self._potential.potential_type != new_potential.potential_type:
+            raise ValueError('New potential does not have same type.')
+        if abs(self._lam - new_potential.lam) > eps:
+            raise ValueError('New potential is not at the same lam')
+
+        self._potential = new_potential
+        self._v = new_potential.without_weights()
+        self._k = new_potential.kinetic_energy()
+        self._lam = new_potential.lam
+
 
 # ---------------------------- Internal methods ---------------------------- #
 
 
+# pylint: disable=too-many-arguments,too-many-locals,invalid-name
 def _srg_rhs(s, potential, kinetic, potential_weight, weights, flow,
              verbose):
     T = kinetic
@@ -156,11 +210,6 @@ def _mmm(matrix1, matrix2, matrix3):
 
 def _mmmmm(matrix1, matrix2, matrix3, matrix4, matrix5):
     return _mm(_mm(matrix1, matrix2), _mmm(matrix3, matrix4, matrix5))
-
-
-def _commutator(a, b):
-    c = np.dot(a, b) - np.dot(b, a)
-    return c
 
 
 def _flatten(m):
