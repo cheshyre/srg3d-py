@@ -8,6 +8,8 @@ from math import pi
 import numpy as np
 import scipy.integrate as integ
 
+from srg3d.potential import Potential
+
 
 class SRG:
     """Interface for the 3-D SRG evolution."""
@@ -95,6 +97,19 @@ class SRG:
         self._lam = lam
 
         return self
+
+    def get_potential(self):
+        """Return new `Potential` object from current potential and lam.
+
+        Returns
+        -------
+        Potential
+            New potential corresponding to the current state of the SRG
+            evolution.
+
+        """
+        return Potential(self._potential.potential_type, self._potential.nodes,
+                         self._potential.weights, self._v, self._lam)
 
 
 # ---------------------------- Internal methods ---------------------------- #
