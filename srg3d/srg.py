@@ -130,13 +130,18 @@ class SRG:
         return Potential(self._potential.potential_type, self._potential.nodes,
                          self._potential.weights, self._v, self._lam)
 
-    def replace_potential(self, new_potential):
+    def replace_potential(self, new_potential, flow_operator_mask_v,
+                          flow_operator_mask_k):
         """Replace potential being used for SRG evolution with another.
 
         Parameters
         ----------
         new_potential : Potential
             New potential to replace current potential in SRG evolution.
+        flow_operator_mask_v : matrix of floats
+            New mask for potential with correct dimensions.
+        flow_operator_mask_k : matrix of floats
+            New mask for kinetic energy with correct dimensions.
 
         Raises
         ------
@@ -163,6 +168,8 @@ class SRG:
         self._v = new_potential.without_weights()
         self._k = new_potential.kinetic_energy()
         self._lam = new_potential.lam
+        self._flow_op_mask_v = flow_operator_mask_v
+        self._flow_op_mask_k = flow_operator_mask_k
 
 
 # ---------------------------- Internal methods ---------------------------- #
