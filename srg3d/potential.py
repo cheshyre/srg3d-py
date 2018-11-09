@@ -34,16 +34,32 @@ following methods::
 
 Methods
 -------
-potential = load(file_str)
+potential = load_from_file(file_str)
 
 Method to load a potential from a file. Requires that standard file-naming
 conventions have been followed.
 
-save(directory, potential)
+potential = load(n_body, order, name, channel, lambda, particles,
+                 num_points='*')
 
-Method to save potential with correct naming convention to directory.
+Method to load potential from a standard directory. Requires that potential was
+saved there earlier.
+
+save(potential, directory=None)
+
+Method to save potential with correct naming convention either to a standard
+folder or to a user-specified directory.
 
 Changelog:
+
+2018.11.09
+    Added:
+        load_from_file method
+    Changed:
+        Make load take parameters and use load_from_file for loading from a
+        specific file
+        Save now has different parameter ordering with the dir_str param being
+        optional
 
 2018.11.06
     Added:
@@ -55,6 +71,7 @@ from __future__ import division
 from __future__ import print_function
 from __future__ import unicode_literals
 
+import glob
 import os
 import re
 
@@ -65,6 +82,9 @@ NBODY_DICT = {
     'NN': 2,
     '3N': 3,
 }
+
+STANDARD_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                             'potentials')
 
 INV_NBODY_DICT = {v: k for k, v in NBODY_DICT.items()}
 
@@ -492,7 +512,7 @@ class Potential:
 
 
 # pylint: disable=too-many-locals
-def load(file_str):
+def load_from_file(file_str):
     """Load potential from file.
 
     Parameters
@@ -550,22 +570,82 @@ def load(file_str):
     return Potential(potential_type, nodes, weights, potential, lam)
 
 
-def save(dir_str, potential):
-    """Save potential to directory with correct file-naming.
+# pylint: disable=too-many-arguments
+def load(n_body, order, name, channel, lam, particles, num_points='*'):
+    """Load potential based on parameters.
 
     Parameters
     ----------
-    dir_str : str
-        String corresponding to directory where file should be saved. May have
-        trailing `/`.
-    potential : Potential
-        Potential to be saved.
+     n_body : int
+        Number of particles interacting in potential.
+    order : int
+        Order to which potential was calculated.
+    name : str
+        Name for potential, may reflect something about origin.
+    channel: Channel or (int, int, int, int, int) or str
+        Object representing the partial wave channel for the potential.
+    lam : float
+        Value of SRG flow parameter for potential.
+    particles: str
+        String representing constituent particles in the interaction.
+    num_points : int, optional
+        Number of points in potential. Should only be specified if multiple
+        versions of same potential are saved and you need a specific one.
+        Otherwise, will match the first one in lexicographical ordering.
+
+    Returns
+    -------
+    Potential
+        Potential created from extracted information and data from file.
+
+    Raises
+    ------
+    FileNotFoundError
+        If globbing doesn't match any files.
 
     """
-    # Strip potential trailing '/'
-    if dir_str[-1] == '/':
-        dir_str = dir_str[:-1]
+    # Set up format string
+    file_format_str = '{}/V{}_{}_{}_SLLJT_{}_lambda_{:.2f}_Np_{}_{}.dat'
 
+    # Get values for format string
+    n_body_str = INV_NBODY_DICT[n_body]
+    order_str = INV_ORDER_DICT[order]
+
+    # Handle non-string formats
+    if isinstance(channel, Channel):
+        channel = str(channel)
+    elif isinstance(channel, tuple):
+        channel = ''.join(channel)
+
+    dir_str = os.path.join(STANDARD_PATH, n_body_str,
+                           'SLLJT_{}'.format(channel))
+
+    # Create full file path string
+    file_path = file_format_str.format(dir_str, n_body_str, order_str, name,
+                                       channel, lam, num_points, particles)
+
+    # Handle globbing
+    if num_points == '*':
+        try:
+            file_path = glob.glob(file_path)[0]
+        except IndexError:
+            raise FileNotFoundError('No potential with those params found.')
+
+    return load_from_file(file_path)
+
+
+def save(potential, dir_str=None):
+    """Save potential with correct file-naming.
+
+    Parameters
+    ----------
+    potential : Potential
+        Potential to be saved.
+    dir_str : str, optional
+        String corresponding to directory where file should be saved. May have
+        trailing `/`.
+
+    """
     # Set up format strings
     file_format_str = '{}/V{}_{}_{}_SLLJT_{}_lambda_{:.2f}_Np_{}_{}.dat'
     nodes_format_str = '{:.5e} {:.5e}\n'
@@ -583,8 +663,17 @@ def save(dir_str, potential):
     num_points = len(potential.nodes)
     particles = potential_type.particles
 
+    # Handle optional argument
+    if dir_str is None:
+        dir_str = os.path.join(STANDARD_PATH, n_body_str,
+                               'SLLJT_{}'.format(channel_str))
+
+    # Strip potential trailing '/'
+    if dir_str[-1] == '/':
+        dir_str = dir_str[:-1]
+
     # Create full file path string
-    file_path = file_format_str.format(n_body_str, order_str, name,
+    file_path = file_format_str.format(dir_str, n_body_str, order_str, name,
                                        channel_str, lam, num_points, particles)
 
     # Create directory if it doesnt exist
