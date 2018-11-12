@@ -17,7 +17,7 @@ except ModuleNotFoundError:
 
 
 path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'potentials')
-pattern = 'VNN_N3LO_EM550new_*_np.dat'
+pattern = 'VNN_N3LO_EM420new_*_np.dat'
 
 full_path = os.path.join(path, pattern)
 
