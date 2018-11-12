@@ -659,7 +659,7 @@ def save(potential, dir_str=None):
     order_str = INV_ORDER_DICT[order]
     name = potential_type.name
     channel_str = str(potential_type.channel)
-    lam = potential_type.lam
+    lam = potential.lam
     num_points = len(potential.nodes)
     particles = potential_type.particles
 
