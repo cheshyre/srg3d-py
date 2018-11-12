@@ -72,6 +72,8 @@ from __future__ import print_function
 from __future__ import unicode_literals
 
 import glob
+from math import pi
+from math import sqrt
 import os
 import re
 
@@ -320,7 +322,7 @@ class Potential:
         self._weights = weights
         self._lam = lam
         if has_weights:
-            potential = _rem_w(potential, self._weights)
+            potential = _rem_w(potential, self._weights, self._nodes)
         self._potential = potential
 
     def with_weights(self):
@@ -332,7 +334,7 @@ class Potential:
             Potential with integration weights.
 
         """
-        return _add_w(self._potential, self._weights)
+        return _add_w(self._potential, self._weights, self._nodes)
 
     def without_weights(self):
         """Return potential without weights (for visualization).
@@ -715,16 +717,16 @@ def plot(potential, v_min=None, v_max=None):
 # ------------------- Internal Methods ------------------------------------- #
 
 
-def _add_w(matrix, weights):
-    factor_vector = [x**0.5 for x in weights]
+def _add_w(matrix, weights, nodes):
+    factor_vector = [sqrt(w) * p for w, p in zip(weights, nodes)]
     weighted_matrix = np.dot(np.dot(np.diag(factor_vector), matrix),
                              np.diag(factor_vector))
-    return weighted_matrix
+    return 2 / pi * weighted_matrix
 
 
-def _rem_w(matrix, weights):
-    factor_vector = [1/(x**0.5) for x in weights]
-    unweighted_matrix = np.dot(np.dot(np.diag(factor_vector), matrix),
+def _rem_w(matrix, weights, nodes):
+    factor_vector = [1/(sqrt(w) * p) for w, p in zip(weights, nodes)]
+    unweighted_matrix = np.dot(np.dot(np.diag(factor_vector), pi / 2 * matrix),
                                np.diag(factor_vector))
     return unweighted_matrix
 
