@@ -5,8 +5,6 @@ from __future__ import division
 from __future__ import print_function
 from __future__ import unicode_literals
 
-from math import sqrt
-
 import numpy as np
 from numpy.linalg import eigh
 
@@ -19,11 +17,10 @@ except ImportError:
     potential = srg3d.potential
     srg = srg3d.srg
 
-
-def add_weights(potential_energy, weights):
-    weights_matrix = np.diag([w**(0.5) for w in weights])
-    return np.dot(weights_matrix, np.dot(potential_energy, weights_matrix))
-
+# Physical constants
+hbarc = 200
+nucleon_mass = 940
+red_mass = nucleon_mass / 2
 
 # Load unevolve potential
 a = potential.load(2, 3, 'EM420new', '00001', 50, 'np')
@@ -42,20 +39,12 @@ for l in lambdas:
     b = potential.load(2, 3, 'EM420new', '00001', l, 'np')
 
     # Compute Hamiltonian
-    potential_energy = b.without_weights()
+    potential_energy = b.with_weights()
     kinetic_energy = b.kinetic_energy()
-    hamiltonian = np.zeros_like(potential_energy)
 
-    nodes = b.nodes
-    weights = b.weights
-    weights_sqrt = np.array([sqrt(w) for w in weights])
-    for i in range(b.dim):
-        for j in range(b.dim):
-            hamiltonian[i][j] = nodes[i] * weights_sqrt[i] \
-                * potential_energy[i][j] * nodes[j] * weights_sqrt[j] \
-                + kinetic_energy[i][j]
+    hamiltonian = potential_energy + kinetic_energy
 
     # Get lowest eigenvalue
     ev = np.amin(eigh(hamiltonian)[0])
     print('Lambda: {}'.format(l))
-    print(200 * 200 / 940 * ev)
+    print(hbarc**2 / (2 * red_mass) * ev)
