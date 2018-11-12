@@ -11,7 +11,7 @@ import os
 # Check if module is installed, otherwise load locally
 try:
     import srg3d.potential as potential
-except ModuleNotFoundError:
+except ImportError:
     from context import srg3d
     potential = srg3d.potential
 

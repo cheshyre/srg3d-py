@@ -14,7 +14,7 @@ from numpy.linalg import eigh
 try:
     import srg3d.potential as potential
     import srg3d.srg as srg
-except ModuleNotFoundError:
+except ImportError:
     from context import srg3d
     potential = srg3d.potential
     srg = srg3d.srg
