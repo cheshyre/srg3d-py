@@ -92,16 +92,17 @@ for l, n in zip(lambdas, num_pts):
         srg_obj.replace_potential(c_potential, v_mask, k_mask)
     hamiltonian2 = c_potential.with_weights() + c_potential.kinetic_energy()
     # Load reference potential (calculated by different code)
-    chan_3s1 = potential.load(2, 3, 'EM420new', '10010', 50, 'np')
-    chan_3s1_3d1 = potential.load(2, 3, 'EM420new', '10210', 50, 'np')
-    chan_3d1_3s1 = potential.load(2, 3, 'EM420new', '12010', 50, 'np')
-    chan_3d1 = potential.load(2, 3, 'EM420new', '12210', 50, 'np')
+    chan_3s1 = potential.load(2, 3, 'EM420new', '10010', l, 'np')
+    chan_3s1_3d1 = potential.load(2, 3, 'EM420new', '10210', l, 'np')
+    chan_3d1_3s1 = potential.load(2, 3, 'EM420new', '12010', l, 'np')
+    chan_3d1 = potential.load(2, 3, 'EM420new', '12210', l, 'np')
 
     hamiltonian = get_coupled_channel_hamiltonian([chan_3s1, chan_3s1_3d1,
                                                    chan_3d1_3s1, chan_3d1])
 
     # Get lowest eigenvalue
     ev = np.amin(eigh(hamiltonian)[0])
+    ev2 = np.amin(eigh(hamiltonian2)[0])
     print('Lambda: {}'.format(l))
     print(hbarc**2 / (2 * red_mass) * ev)
     print(hbarc**2 / (2 * red_mass) * ev2)
