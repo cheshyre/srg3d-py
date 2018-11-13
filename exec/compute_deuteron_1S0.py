@@ -18,9 +18,10 @@ except ImportError:
     srg = srg3d.srg
 
 # Physical constants
-hbarc = 200
-nucleon_mass = 940
-red_mass = nucleon_mass / 2
+hbarc = 197.327
+proton_mass = 938.272
+neutron_mass = 939.565
+red_mass = proton_mass * neutron_mass / (proton_mass + neutron_mass)
 
 # Load unevolve potential
 a = potential.load(2, 3, 'EM420new', '00001', 50, 'np')
