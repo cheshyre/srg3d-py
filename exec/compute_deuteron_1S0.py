@@ -24,11 +24,6 @@ red_mass = nucleon_mass / 2
 
 # Load unevolve potential
 a = potential.load(2, 3, 'EM420new', '00001', 50, 'np')
-dim = len(a.nodes)
-
-# Set up T_rel flow operator
-v_mask = np.array([[0 for i in range(dim)] for j in range(dim)])
-k_mask = np.array([[1 for _ in range(dim)] for _ in range(dim)])
 
 # Create list of lambdas to which to evolve
 lambdas = [25] + list(range(10, 4, -1)) + list(np.arange(4, 3.1, -0.5)) \
