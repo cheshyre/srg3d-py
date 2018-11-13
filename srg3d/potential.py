@@ -13,6 +13,14 @@ method::
 
 These are also commonly read as S, L, L, J, and T.
 
+class CoupledChannel
+--------------------
+A container to handle coupled channels. It has the following method::
+
+    channel = CoupledChannel(list_of_channels)
+
+All channels in coupled channel should have same S, J, and T.
+
 class PotentialType
 -------------------
 A container class to hold all the physical information about the potential. It
@@ -49,6 +57,10 @@ save(potential, directory=None)
 
 Method to save potential with correct naming convention either to a standard
 folder or to a user-specified directory.
+
+potential = create_coupled_channel_potential(list_of_potentials)
+
+Method to create coupled channel potential from list of potentials.
 
 Changelog:
 
@@ -172,6 +184,64 @@ class Channel:
 
         """
         return self.as_5tuple() != other.as_5tuple()
+
+
+class CoupledChannel(Channel):
+    """Container for information about coupled channel."""
+
+    def __init__(self, list_of_channels):
+        """Create coupled channel container.
+
+        Parameters
+        ----------
+        list_of_channels : list of Channel objects
+            List of channels in coupled channel.
+
+        """
+        spins = {x.as_5tuple()[0] for x in list_of_channels}
+        tot_ang_moms = {x.as_5tuple()[3] for x in list_of_channels}
+        isospins = {x.as_5tuple()[4] for x in list_of_channels}
+        if len(spins) * len(isospins) * len(tot_ang_moms) != 1:
+            raise ValueError('Given channels cannot be coupled.')
+        super(CoupledChannel, self).__init__(spins.pop(), '*', '*',
+                                             tot_ang_moms.pop(),
+                                             isospins.pop())
+        self._channels = list_of_channels
+
+    @property
+    def channels(self):
+        """Return list of channels in coupled channel.
+
+        Returns
+        -------
+        list of Channel objects
+
+        """
+        return self._channels
+
+    def __eq__(self, other):
+        """Return whether coupled channel object is same as another.
+
+        Returns
+        -------
+        bool
+            True if coupled channels are equal, False otherwise.
+
+        """
+        return False not in {x == y for x, y in zip(self.channels,
+                                                    other.channels)}
+
+    def __ne__(self, other):
+        """Return whether coupled channel object is not same as another.
+
+        Returns
+        -------
+        bool
+            True if coupled channels are not equal, False otherwise.
+
+        """
+        return False in {x == y for x, y in zip(self.channels,
+                                                other.channels)}
 
 
 class PotentialType:
@@ -325,6 +395,25 @@ class Potential:
             potential = _rem_w(potential, self._weights, self._nodes)
         self._potential = potential
 
+    def copy(self, potential, lam):
+        """Create potential from current potential with new data and lam.
+
+        Parameters
+        ----------
+        potential : matrix of floats
+            Potential data.
+        lam : float
+            Value of lambda
+
+        Returns
+        -------
+        Potential
+            New potential with new data.
+
+        """
+        return Potential(self._potential_type, self._nodes, self._weights,
+                         potential, lam)
+
     def with_weights(self):
         """Return potential with weights factored in (for calculations).
 
@@ -349,6 +438,11 @@ class Potential:
 
     def reduce_dim(self, dim):
         """Return new potential with only `dim` lowest energy states.
+
+        Parameters
+        ----------
+        dim : int
+            Dimension to which potential is to be reduced.
 
         Returns
         -------
@@ -511,6 +605,132 @@ class Potential:
 
         """
         return self._lam
+
+
+class CoupledPotential(Potential):
+    """Representation of potential of coupled channel."""
+
+    def __init__(self, list_of_potentials):  # pylint: disable=too-many-locals
+        """Create potential from list of potentials in a coupled channel.
+
+        Parameters
+        ----------
+        list_of_potentials : list of Potential objects
+            List of potentials to form coupled channel.
+
+        Returns
+        -------
+        Potential
+            New potential with full coupled channel.
+
+        """
+        self._construction = list_of_potentials
+        channels = [x.potential_type.channel for x in list_of_potentials]
+        n_body = {x.potential_type.n_body for x in list_of_potentials}
+        order = {x.potential_type.order for x in list_of_potentials}
+        name = {x.potential_type.name for x in list_of_potentials}
+        particles = {x.potential_type.particles for x in list_of_potentials}
+        if len(n_body) * len(order) * len(name) * len(particles) != 1:
+            raise ValueError('Given potentials cannot be coupled.')
+        coupled_channel = CoupledChannel(channels)
+        potential_type = PotentialType(n_body.pop(), order.pop(), name.pop(),
+                                       coupled_channel, particles.pop())
+        lam = {x.lam for x in list_of_potentials}
+        if len(lam) != 1:
+            raise ValueError('Not all given potentials are at the same lam.')
+        lam = lam.pop()
+        dim = {x.dim for x in list_of_potentials}
+        if len(dim) != 1:
+            raise ValueError('Not all given potentials have same dim.')
+        dim = dim.pop()
+        c_dim = int(sqrt(len(list_of_potentials)))
+        if c_dim**2 != len(list_of_potentials):
+            raise ValueError('Non-square number of potentials given.')
+        nodes = []
+        weights = []
+        for pot in list_of_potentials[:c_dim]:
+            nodes += pot.nodes
+            weights += pot.weights
+        nodes = np.array(nodes)
+        weights = np.array(weights)
+        potential_data = np.zeros((c_dim * dim, c_dim * dim))
+        self._channel_indexes = []
+        for i in range(c_dim):
+            for j in range(c_dim):
+                r_s = i * dim
+                r_e = (i + 1) * dim
+                c_s = j * dim
+                c_e = (j + 1) * dim
+                data = list_of_potentials[i * c_dim + j].without_weights()
+                potential_data[r_s:r_e, c_s:c_e] = data
+                self._channel_indexes.append((r_s, r_e, c_s, c_e))
+        super(CoupledPotential, self).__init__(potential_type, nodes, weights,
+                                               potential_data, lam)
+        self._c_dim = c_dim
+        self._w_dim = dim
+        self._channels = channels
+
+    def copy(self, potential, lam):
+        new_potentials = []
+        for pot, ranges in zip(self._construction, self._channel_indexes):
+            sub_matrix = _submatrix(potential, ranges)
+            new_potentials.append(pot.copy(sub_matrix, lam))
+        return CoupledPotential(new_potentials)
+
+    def reduce_dim(self, dim):
+        """Return new potential with only `dim` lowest energy states.
+
+        Parameters
+        ----------
+        dim : int
+            Dimension to which potential is to be reduced.
+
+        Returns
+        -------
+        Potential
+            New reduced dimension potential.
+
+        Raises
+        ------
+        ValueError
+            When value for new dim is too small or too large.
+
+        """
+        if dim >= self._w_dim:
+            raise ValueError('Value of dim is not smaller than current dim.')
+        if dim <= 0:
+            raise ValueError('Zero or negative dim is not allowed.')
+        new_potentials = []
+        for pot, ranges in zip(self._construction, self._channel_indexes):
+            sub_matrix = _submatrix(self._potential, ranges)
+            new_potentials.append(pot.copy(sub_matrix,
+                                           self._lam).reduce_dim(dim))
+        return CoupledPotential(new_potentials)
+
+    def extract_channel_potential(self, channel):
+        """Return potential corresponding to channel.
+
+        Parameters
+        ----------
+        channel : Channel
+            Channel to extract.
+
+        Returns
+        -------
+        Potential
+            Potential corresponding to channel.
+
+        """
+        for c, potential, ranges in zip(self._channels, self._construction,
+                                        self._channel_indexes):
+            if channel == c:
+                sub_matrix = _submatrix(self._potential, ranges)
+                return potential.copy(sub_matrix, self._lam)
+        raise ValueError('Channel not found.')
+
+    @property
+    def dim(self):
+        return self._w_dim
 
 
 # pylint: disable=too-many-locals
@@ -735,3 +955,8 @@ def _ensure_dir_for_file(file):
     directory = os.path.dirname(file)
     if not os.path.exists(directory):
         os.makedirs(directory)
+
+
+def _submatrix(potential, ranges):
+    return potential[np.ix_(list(range(ranges[0], ranges[1])),
+                            list(range(ranges[2], ranges[3])))]

@@ -127,8 +127,7 @@ class SRG:
             evolution.
 
         """
-        return Potential(self._potential.potential_type, self._potential.nodes,
-                         self._potential.weights, self._v, self._lam)
+        return self._potential.copy(self._v, self._lam)
 
     def replace_potential(self, new_potential, flow_operator_mask_v,
                           flow_operator_mask_k):
