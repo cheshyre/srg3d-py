@@ -33,11 +33,7 @@ red_mass = proton_mass * neutron_mass / (proton_mass + neutron_mass)
 a = potential.load(2, 3, 'EM420new', '00001', 50, 'np')
 
 # Compute Hamiltonian and eigenvalue
-potential_energy = a.with_weights()
-kinetic_energy = a.kinetic_energy()
-
-hamiltonian = potential_energy + kinetic_energy
-
+hamiltonian = a.with_weights() + a.kinetic_energy()
 ev = np.amin(eigh(hamiltonian)[0])
 
 # Output unevolved lowest energy
@@ -79,15 +75,8 @@ for l, n in zip(lambdas, num_pts):
     b = potential.load(2, 3, 'EM420new', '00001', l, 'np')
 
     # Compute Hamiltonians
-    potential_energy = b.with_weights()
-    kinetic_energy = b.kinetic_energy()
-
-    hamiltonian_ref = potential_energy + kinetic_energy
-
-    potential_energy = a.with_weights()
-    kinetic_energy = a.kinetic_energy()
-
-    hamiltonian = potential_energy + kinetic_energy
+    hamiltonian_ref = b.with_weights() + b.kinetic_energy()
+    hamiltonian = a.with_weights() + a.kinetic_energy()
 
     # Get lowest eigenvalues
     ev_ref = np.amin(eigh(hamiltonian_ref)[0])
