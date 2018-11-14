@@ -1,5 +1,11 @@
 # pylint: skip-file
-"""Compute deuteron lowest energy state in 3s1 3d1 coupled channel (bound)."""
+"""Compute deuteron lowest energy state in 3s1 3d1 coupled channel (bound).
+
+Computes lowest energy eigenvalue for a set of reference SRG evolved potentials
+as well as the manually SRG evolved potential to show the implementation is
+numerically equivalent to the reference implementation.
+
+"""
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
@@ -20,7 +26,7 @@ except ImportError:
     srg = srg3d.srg
 
 
-def get_coupled_channel_hamiltonian(channels):
+def _get_coupled_channel_hamiltonian(channels):
     chan_dim = channels[0].dim
     dim = int(sqrt(len(channels)))
     hamiltonian = np.zeros((dim * chan_dim, dim * chan_dim))
@@ -46,25 +52,33 @@ proton_mass = 938.272
 neutron_mass = 939.565
 red_mass = proton_mass * neutron_mass / (proton_mass + neutron_mass)
 
-# Load unevolve potential
+# Load unevolved potential
 chan_3s1 = potential.load(2, 3, 'EM420new', '10010', 50, 'np')
 chan_3s1_3d1 = potential.load(2, 3, 'EM420new', '10210', 50, 'np')
 chan_3d1_3s1 = potential.load(2, 3, 'EM420new', '12010', 50, 'np')
 chan_3d1 = potential.load(2, 3, 'EM420new', '12210', 50, 'np')
 
-hamiltonian = get_coupled_channel_hamiltonian([chan_3s1, chan_3s1_3d1,
-                                               chan_3d1_3s1, chan_3d1])
+# Compute reference Hamiltonian
+hamiltonian_ref = _get_coupled_channel_hamiltonian([chan_3s1, chan_3s1_3d1,
+                                                    chan_3d1_3s1, chan_3d1])
 
+# Create coupled channel potential from channels
 c_potential = potential.CoupledPotential([chan_3s1, chan_3s1_3d1, chan_3d1_3s1,
                                           chan_3d1])
-hamiltonian2 = c_potential.with_weights() + c_potential.kinetic_energy()
 
-ev = np.amin(eigh(hamiltonian)[0])
-ev2 = np.amin(eigh(hamiltonian2)[0])
-print('Lambda: {}'.format(50))
-print(hbarc**2 / (2 * red_mass) * ev)
-print(hbarc**2 / (2 * red_mass) * ev2)
+# Compute alternate Hamiltonian
+hamiltonian_coupled = c_potential.with_weights() + c_potential.kinetic_energy()
 
+# Compute bound state eigenvalues
+ev_ref = np.amin(eigh(hamiltonian_ref)[0])
+ev = np.amin(eigh(hamiltonian_coupled)[0])
+
+# Print unevolved results
+print('Unevolved')
+print('E_ref = E_srg = {} MeV'.format(hbarc**2 / (2 * red_mass) * ev_ref))
+print('E_alt = {} MeV\n'.format(hbarc**2 / (2 * red_mass) * ev))
+
+# Set up SRG evolution
 v_mask = np.array([[0 for _ in range(len(c_potential.nodes))] for _ in
                    range(len(c_potential.nodes))])
 k_mask = np.array([[1 for _ in range(len(c_potential.nodes))] for _ in
@@ -79,10 +93,14 @@ num_pts = [100]*9 + [83] + [79] + [76] + [73] + [72]*2 + [71] + [70]*2 + [69] \
     + [68]*2 + [67]*2 + [66] + [65]*2 + [64]*2 + [63] + [62]*2 + [61]*2
 
 for l, n in zip(lambdas, num_pts):
+    # Evolve potential
     srg_obj.evolve(l, verbose=False, integrator='lsoda', atol=10**(-6),
                    rtol=10**(-6), nsteps=10**(5))
+
+    # Extract evolved potential
     c_potential = srg_obj.get_potential()
 
+    # Reduce dimension if necessary
     if n < c_potential.dim:
         c_potential = c_potential.reduce_dim(n)
         v_mask = np.array([[0 for _ in range(len(c_potential.nodes))] for _ in
@@ -90,19 +108,26 @@ for l, n in zip(lambdas, num_pts):
         k_mask = np.array([[1 for _ in range(len(c_potential.nodes))] for _ in
                            range(len(c_potential.nodes))])
         srg_obj.replace_potential(c_potential, v_mask, k_mask)
-    hamiltonian2 = c_potential.with_weights() + c_potential.kinetic_energy()
+
+    # Compute Hamiltonian
+    hamiltonian = c_potential.with_weights() + c_potential.kinetic_energy()
+
     # Load reference potential (calculated by different code)
     chan_3s1 = potential.load(2, 3, 'EM420new', '10010', l, 'np')
     chan_3s1_3d1 = potential.load(2, 3, 'EM420new', '10210', l, 'np')
     chan_3d1_3s1 = potential.load(2, 3, 'EM420new', '12010', l, 'np')
     chan_3d1 = potential.load(2, 3, 'EM420new', '12210', l, 'np')
 
-    hamiltonian = get_coupled_channel_hamiltonian([chan_3s1, chan_3s1_3d1,
-                                                   chan_3d1_3s1, chan_3d1])
+    # Compute reference Hamiltonian
+    hamiltonian_ref = _get_coupled_channel_hamiltonian([chan_3s1, chan_3s1_3d1,
+                                                        chan_3d1_3s1,
+                                                        chan_3d1])
 
-    # Get lowest eigenvalue
+    # Get lowest eigenvalues
+    ev_ref = np.amin(eigh(hamiltonian_ref)[0])
     ev = np.amin(eigh(hamiltonian)[0])
-    ev2 = np.amin(eigh(hamiltonian2)[0])
+
+    # Output values
     print('Lambda: {}'.format(l))
-    print(hbarc**2 / (2 * red_mass) * ev)
-    print(hbarc**2 / (2 * red_mass) * ev2)
+    print('E_ref = {} MeV'.format(hbarc**2 / (2 * red_mass) * ev_ref))
+    print('E_srg = {} MeV\n'.format(hbarc**2 / (2 * red_mass) * ev))
