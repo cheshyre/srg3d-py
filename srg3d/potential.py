@@ -1,3 +1,4 @@
+# pylint: disable=too-many-lines
 """Nuclear potential module.
 
 Module containing representations of 3D potentials for use in nuclear theory.
@@ -39,6 +40,25 @@ following methods::
     kinetic_energy = potential.kinetic_energy()
     potential_data_wo_weights = potential.without_weights()
     potential_data_w_weights = potential.with_weights()
+    new_potential = potential.copy(potential_data, lam)
+    reduced_potential = potential.reduce_dim(dim)
+
+class CoupledPotential
+----------------------
+Abstraction for representation for potential of coupled channel. Handles logic
+of adding and removing weights. Can generate kinetic energy. It has the
+following methods::
+
+    potential = CoupledPotential([potential1, potential2, potential3,
+                                  potential4])
+    kinetic_energy = potential.kinetic_energy()
+    potential_data_wo_weights = potential.without_weights()
+    potential_data_w_weights = potential.with_weights()
+    new_potential = potential.copy(potential_data, lam)
+    reduced_potential = potential.reduce_dim(dim)
+    channel_potential = potential.extract_channel_potential(
+        potential1.potential_type.channel
+    )
 
 Methods
 -------
@@ -58,11 +78,12 @@ save(potential, directory=None)
 Method to save potential with correct naming convention either to a standard
 folder or to a user-specified directory.
 
-potential = create_coupled_channel_potential(list_of_potentials)
-
-Method to create coupled channel potential from list of potentials.
-
 Changelog:
+
+2018.11.14
+    Added:
+        CoupledChannel for coupled channels
+        CoupledPotential for potentials in coupled channels
 
 2018.11.09
     Added:
@@ -671,6 +692,21 @@ class CoupledPotential(Potential):
         self._channels = channels
 
     def copy(self, potential, lam):
+        """Create potential from current potential with new data and lam.
+
+        Parameters
+        ----------
+        potential : matrix of floats
+            Potential data.
+        lam : float
+            Value of lambda
+
+        Returns
+        -------
+        Potential
+            New potential with new data.
+
+        """
         new_potentials = []
         for pot, ranges in zip(self._construction, self._channel_indexes):
             sub_matrix = _submatrix(potential, ranges)
@@ -721,15 +757,23 @@ class CoupledPotential(Potential):
             Potential corresponding to channel.
 
         """
-        for c, potential, ranges in zip(self._channels, self._construction,
-                                        self._channel_indexes):
-            if channel == c:
+        for chan, potential, ranges in zip(self._channels, self._construction,
+                                           self._channel_indexes):
+            if channel == chan:
                 sub_matrix = _submatrix(self._potential, ranges)
                 return potential.copy(sub_matrix, self._lam)
         raise ValueError('Channel not found.')
 
     @property
     def dim(self):
+        """Return the dimension of single channel in the potential matrix.
+
+        Returns
+        -------
+        int
+            The dimension of a single channel in the (square) potential matrix.
+
+        """
         return self._w_dim
 
 
