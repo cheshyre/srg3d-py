@@ -12,6 +12,11 @@ integrator. It has the following methods::
 
 Changelog:
 
+2018.11.13
+    Changed:
+        Made get_potential use potential object copy method instead of
+        constructor.
+
 2018.11.08
     Added:
         Initial completion of module. Tested and verified it works.
@@ -26,8 +31,6 @@ from math import pi
 
 import numpy as np
 import scipy.integrate as integ
-
-from srg3d.potential import Potential
 
 
 class SRG:
