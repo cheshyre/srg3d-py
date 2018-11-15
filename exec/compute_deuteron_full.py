@@ -94,7 +94,7 @@ num_pts = [100]*9 + [83] + [79] + [76] + [73] + [72]*2 + [71] + [70]*2 + [69] \
 
 for l, n in zip(lambdas, num_pts):
     # Evolve potential
-    srg_obj.evolve(l, verbose=False, integrator='lsoda', atol=10**(-6),
+    srg_obj.evolve(l, verbose=False, integrator='dopri5', atol=10**(-6),
                    rtol=10**(-6), nsteps=10**(5))
 
     # Extract evolved potential
