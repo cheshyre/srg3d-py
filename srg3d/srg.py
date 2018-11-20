@@ -28,6 +28,7 @@ from __future__ import print_function
 from __future__ import unicode_literals
 
 from math import pi
+from math import sqrt
 
 import numpy as np
 import scipy.integrate as integ
@@ -178,8 +179,15 @@ class SRG:
 
 
 # pylint: disable=too-many-arguments,too-many-locals,invalid-name
-def _srg_rhs(s, potential, kinetic, potential_weight, weights, flow,
-             verbose):
+def _srg_rhs_old(s, potential, kinetic, potential_weight, weights, flow,
+                 verbose):
+    """Old implementation of SRG flow equation.
+
+    New implementation is more efficient and reflects actual form better.
+    Keeping this for documentation and as reference for analytic evaluation of
+    flow equation with general flow operator.
+
+    """
     T = kinetic
     V = _unflatten(potential)
     TT = np.dot(T, T)
@@ -207,6 +215,47 @@ def _srg_rhs(s, potential, kinetic, potential_weight, weights, flow,
         factor = (-4.0/(s**5))
         rhs *= factor
     return _flatten(rhs)
+
+
+def _srg_rhs(s, potential, kinetic, potential_weight, weights, flow,
+             verbose):
+    T = kinetic
+    V = _unflatten(potential)
+
+    # Compute integration weights
+    nodes_sq = T.diagonal()
+    w_sqrt = [sqrt(2 * w * p_sq / pi) for w, p_sq in zip(weights, nodes_sq)]
+    W_matrix = np.diag(w_sqrt)
+    W_matrix_inv = np.diag([1 / x for x in w_sqrt])
+
+    # Add integration weights
+    V_w = _mm(W_matrix, _mm(V, W_matrix))
+
+    # Compute Hamiltonian
+    H = T + V_w
+
+    # Get flow operator
+    X = np.multiply(V_w, potential_weight)
+    G = T + X
+
+    # Compute SRG commutators
+    rhs = _com(_com(G, H), H)
+
+    # Remove integration weights
+    rhs = _mm(W_matrix_inv, _mm(rhs, W_matrix_inv))
+
+    if verbose:
+        print(s)
+
+    # Add factor for lambda flow vs s flow
+    if flow == 'lambda':
+        factor = (-4.0/(s**5))
+        rhs *= factor
+    return _flatten(rhs)
+
+
+def _com(matrix1, matrix2):
+    return _mm(matrix1, matrix2) - _mm(matrix2, matrix1)
 
 
 def _mm(matrix1, matrix2):
