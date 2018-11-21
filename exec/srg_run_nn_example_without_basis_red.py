@@ -40,7 +40,7 @@ lambdas = [25] + list(range(10, 4, -1)) + list(np.arange(4, 3.1, -0.5)) \
 
 for l in lambdas:
     # Evolve to lambda
-    srg_obj.evolve(l, verbose=False, integrator='dopri5', atol=10**(-6),
+    srg_obj.evolve(l, verbose=False, integrator='dop853', atol=10**(-6),
                    rtol=10**(-6), nsteps=10**(5))
 
     # Load reference potential (calculated by different code)
